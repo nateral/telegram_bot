@@ -1,0 +1,283 @@
+{
+    "modes": [
+        {
+            "name": "nodebuff",
+            "platforms": [
+                "pc",
+                "gp",
+                "pe"
+            ],
+            "protected": true
+        },
+        {
+            "name": "gapple",
+            "platforms": [
+                "pc",
+                "gp"
+            ],
+            "protected": true
+        },
+        {
+            "name": "bedwars",
+            "platforms": [
+                "pc",
+                "pe"
+            ],
+            "protected": false
+        },
+        {
+            "name": "SURVIVAL",
+            "platforms": [
+                "pc",
+                "pe"
+            ],
+            "protected": false
+        }
+    ],
+    "tiers": {
+        "nodebuff": {
+            "pc": {
+                "S": [
+                    "n3cr0t0x1n",
+                    "new"
+                ],
+                "A": [
+                    "AquProklytby",
+                    "convulsions",
+                    "dox",
+                    "dragonfair222"
+                ],
+                "B": [
+                    "kwickex",
+                    "xadewenetlxuamnl",
+                    "MANHHATAN",
+                    "midoria_his",
+                    "pxnos",
+                    "ray_fan",
+                    "resxlutee",
+                    "snf",
+                    "yofyyuud"
+                ],
+                "C": [
+                    "harukanw",
+                    "_llandyyy_",
+                    "allax990",
+                    "corporation",
+                    "denss",
+                    "derevnya",
+                    "ephyorn",
+                    "leare1",
+                    "avr1kok",
+                    "harushka",
+                    "shattermixius",
+                    "spenmc",
+                    "wrapxshasg0yat"
+                ],
+                "D": [
+                    "callmedest",
+                    "crypticzBEST",
+                    "saInthermes",
+                    "veyron"
+                ],
+                "E": [
+                    "fxllowing"
+                ]
+            },
+            "gp": {
+                "S": [
+                    "just4catt"
+                ],
+                "A": [
+                    "anx1ous",
+                    "kqnepp"
+                ],
+                "B": [
+                    "imkendyy",
+                    "jhearn110"
+                ],
+                "C": [
+                    "imsuzuko",
+                    "tzuxavler"
+                ],
+                "D": [
+                    "item",
+                    "volmy",
+                    "sakura_combit",
+                    "tot1ks"
+                ],
+                "E": []
+            },
+            "pe": {
+                "S": [
+                    "fxlest",
+                    "starix"
+                ],
+                "A": [
+                    "dxlast",
+                    "Azgard"
+                ],
+                "B": [
+                    "snegr",
+                    "rinvi",
+                    "liesmines",
+                    "fxleq",
+                    "btierinpe",
+                    "sqlatiki",
+                    "letobel"
+                ],
+                "C": [
+                    "akamexkill",
+                    "legendoed_1488",
+                    "sheb0",
+                    "Flaysi",
+                    "Veizon"
+                ],
+                "D": [],
+                "E": [
+                    "zamfi"
+                ]
+            }
+        },
+        "gapple": {
+            "pc": {
+                "S": [],
+                "A": [],
+                "B": [],
+                "C": [],
+                "D": [],
+                "E": []
+            },
+            "gp": {
+                "S": [],
+                "A": [],
+                "B": [],
+                "C": [],
+                "D": [],
+                "E": []
+            }
+        },
+        "bedwars": {
+            "pc": {
+                "S": [
+                    "IbPoXIMJoNq",
+                    "Matvei_22"
+                ],
+                "A": [
+                    "Manthiev",
+                    "Kxrn3z",
+                    "Sweepleall"
+                ],
+                "B": [
+                    "Marbles",
+                    "Stanfer",
+                    "Leylo_yt",
+                    "Grxell",
+                    "ka1kura",
+                    "kadzz1Zsx",
+                    "RemoseRus"
+                ],
+                "C": [
+                    "martiniqq",
+                    "Gard1na",
+                    "Smittybest",
+                    "TwoySempay",
+                    "Maphusael"
+                ],
+                "D": [
+                    "Delfost",
+                    "Sn1ksfr",
+                    "Penevaisick_gg"
+                ],
+                "E": [
+                    "potting",
+                    "mxd",
+                    "azimweb3",
+                    "Hardline",
+                    "V1rtyOzSolos"
+                ]
+            },
+            "pe": {
+                "S": [],
+                "A": [],
+                "B": [],
+                "C": [],
+                "D": [],
+                "E": []
+            }
+        },
+        "SURVIVAL": {
+            "pc": {
+                "S": [
+                    "aligarf",
+                    "n3cr0t0x1n"
+                ],
+                "A": [
+                    "k0rnez",
+                    "archart1fact560",
+                    "bggwell"
+                ],
+                "B": [
+                    "denss",
+                    "CutemaldMSX",
+                    "zaurus",
+                    "mxrden"
+                ],
+                "C": [
+                    "imrek400iq",
+                    "ali_army",
+                    "hj9xvm",
+                    "trulimero",
+                    "mxvssn",
+                    "kill_4488",
+                    "seck",
+                    "timosha228",
+                    "yango",
+                    "axlamonyuk",
+                    "almati",
+                    "nemezida",
+                    "kotik121"
+                ],
+                "D": [
+                    "salash02",
+                    "sexibomba",
+                    "Grievous"
+                ],
+                "E": [
+                    "doctor_"
+                ]
+            },
+            "pe": {
+                "S": [
+                    "dofi_mod",
+                    "starix"
+                ],
+                "A": [
+                    "_k_r_u_to_s_1_k_",
+                    "nemezida",
+                    "stxck"
+                ],
+                "B": [
+                    "Cesha_aim",
+                    "culab",
+                    "frezerka",
+                    "souleatter"
+                ],
+                "C": [
+                    "ali_army",
+                    "asan_yt",
+                    "akimaka123",
+                    "hikiokori",
+                    "t_f_g",
+                    "uzbproprouzb",
+                    "abstraction",
+                    "z1sty"
+                ],
+                "D": [
+                    "KPOBb_gEmoHA_v1",
+                    "Froid_flame"
+                ],
+                "E": []
+            }
+        }
+    }
+}
