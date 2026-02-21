@@ -9,8 +9,9 @@ app = Flask(__name__)
 
 # ========== НАСТРОЙКИ ==========
 TOKEN = "7532259267:AAGdCxqHXA_JcAbfHHCl09wZEoIpxmheQsA"
-SITE_URL = "https://breadix-tier.ru"  # Ваш сайт на hoster.ru
-API_URL = f"{SITE_URL}/api.php"  # Созданный API файл
+SITE_URL = "https://breadix-tier.ru"  # Ваш сайт
+API_URL = f"{SITE_URL}/bot_api.php"   # Ваш API
+API_TOKEN = "secret123"                # Тот же токен, что в PHP
 ADMINS = ['6380018406', '8198380412', '8208522743', '7886275415']
 TELEGRAM_API = f"https://api.telegram.org/bot{TOKEN}"
 
@@ -24,10 +25,11 @@ def api_request(action, method='GET', data=None):
     """Универсальная функция для запросов к API сайта"""
     try:
         url = f"{API_URL}?action={action}"
-        if method == 'GET':
-            response = requests.get(url, timeout=5)
-        else:
+        if method == 'POST':
+            url += f"&token={API_TOKEN}"
             response = requests.post(url, json=data, timeout=5)
+        else:
+            response = requests.get(url, timeout=5)
         
         if response.status_code == 200:
             return response.json()
@@ -52,7 +54,7 @@ def get_applications():
     return api_request('get_applications') or []
 
 def save_data(action, data):
-    """Отправляет изменения на сайт"""
+    """Сохраняет данные на сайт"""
     return api_request(f'save_{action}', 'POST', data)
 
 # ========== РАБОТА С СОСТОЯНИЯМИ (локально на Render) ==========
@@ -127,7 +129,7 @@ def answer_callback(callback_id, text=''):
         payload['text'] = text
     
     try:
-        requests.post(url, json=payload, timeout=5)
+        requests.post(url, json=payload, timeout=3)
     except Exception as e:
         print(f"Answer error: {e}")
 
@@ -661,9 +663,6 @@ def handle_add_tier(chat_id, msg_id, mode, platform, tier, user_id):
     
     # Убираем клавиатуру
     edit_message(chat_id, msg_id, f"Добавление игрока\n\n{mode.upper()} | {platform.upper()} | {tier}\n\nВведите ник в чат:", None)
-    
-    # Отвечаем на callback
-    answer_callback_custom(None, "Введите ник в чат")
 
 def handle_edit_mode(chat_id, msg_id, mode, user_id):
     data = get_data()
@@ -1011,17 +1010,10 @@ def handle_confirm_add(chat_id, user_id, text):
     send_message(chat_id, f"Добавлено:\n{mode.upper()} | {platform.upper()} | {tier}\n\n{text}")
     clear_state(user_id)
 
-def answer_callback_custom(callback_id, text=''):
-    # Заглушка для ответа на callback
-    pass
-
 # ========== ОСНОВНОЙ ВЕБХУК ==========
 @app.route('/', methods=['POST'])
 def webhook():
     data = request.get_json()
-    
-    # Логируем для отладки (опционально)
-    # print(json.dumps(data, indent=2, ensure_ascii=False))
     
     if 'message' in data:
         chat_id = data['message']['chat']['id']
@@ -1139,9 +1131,11 @@ def webhook():
                 elif parts[1] == 'tier' and len(parts) >= 5:
                     handle_edit_tier(chat_id, msg_id, parts[2], parts[3], parts[4], user_id)
                 elif parts[1] == 'player' and len(parts) >= 6:
-                    handle_edit_player(chat_id, msg_id, get_state(user_id, 'edit_mode'), 
+                    handle_edit_player(chat_id, msg_id, 
+                                      get_state(user_id, 'edit_mode'), 
                                       get_state(user_id, 'edit_platform'), 
-                                      get_state(user_id, 'edit_tier'), parts[5], user_id)
+                                      get_state(user_id, 'edit_tier'), 
+                                      parts[5], user_id)
                 elif parts[1] == 'move':
                     handle_edit_move(chat_id, msg_id, user_id)
                 elif parts[1] == 'movemode' and len(parts) >= 3:
@@ -1198,12 +1192,7 @@ def webhook():
                 handle_app_delete(chat_id, msg_id, parts[2])
         
         # Отвечаем на callback
-        try:
-            url = f"{TELEGRAM_API}/answerCallbackQuery"
-            payload = {'callback_query_id': cb['id']}
-            requests.post(url, json=payload, timeout=3)
-        except:
-            pass
+        answer_callback(cb['id'])
     
     return "OK", 200
 
