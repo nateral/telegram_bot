@@ -9,56 +9,79 @@ app = Flask(__name__)
 
 # ========== НАСТРОЙКИ ==========
 TOKEN = "7532259267:AAGdCxqHXA_JcAbfHHCl09wZEoIpxmheQsA"
-SITE_URL = "https://breadix-tier.ru"  # Ваш сайт
+SITE_URL = "https://breadix-tier.ru"  # Ваш сайт на hoster.ru
+API_URL = f"{SITE_URL}/api.php"  # Созданный API файл
 ADMINS = ['6380018406', '8198380412', '8208522743', '7886275415']
-URL = f"https://api.telegram.org/bot{TOKEN}"
+TELEGRAM_API = f"https://api.telegram.org/bot{TOKEN}"
 
-# ========== РАБОТА С ФАЙЛАМИ ==========
-DATA_FILE = 'data.json'
-DESC_FILE = 'descriptions.json'
-HISTORY_FILE = 'history.json'
-APPS_FILE = 'applications.json'
+# Папка для состояний (админские сессии)
 STATES_DIR = 'states'
-
-# Создаём папку для состояний, если нет
 if not os.path.exists(STATES_DIR):
     os.makedirs(STATES_DIR)
 
-def load_json(filename, default=None):
-    """Загружает JSON из файла"""
-    if default is None:
-        default = {} if filename.endswith('.json') else []
+# ========== РАБОТА С API САЙТА ==========
+def api_request(action, method='GET', data=None):
+    """Универсальная функция для запросов к API сайта"""
     try:
-        if os.path.exists(filename):
-            with open(filename, 'r', encoding='utf-8') as f:
-                return json.load(f)
-    except:
-        pass
-    return default
+        url = f"{API_URL}?action={action}"
+        if method == 'GET':
+            response = requests.get(url, timeout=5)
+        else:
+            response = requests.post(url, json=data, timeout=5)
+        
+        if response.status_code == 200:
+            return response.json()
+    except Exception as e:
+        print(f"API Error: {e}")
+    return None
 
-def save_json(filename, data):
-    """Сохраняет JSON в файл"""
-    try:
-        with open(filename, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-        return True
-    except:
-        return False
+def get_data():
+    """Получает data.json с сайта"""
+    return api_request('get_data') or {'tiers': {}, 'modes': []}
 
-# ========== РАБОТА С СОСТОЯНИЯМИ ==========
+def get_descriptions():
+    """Получает описания с сайта"""
+    return api_request('get_descriptions') or {}
+
+def get_history():
+    """Получает историю с сайта"""
+    return api_request('get_history') or []
+
+def get_applications():
+    """Получает заявки с сайта"""
+    return api_request('get_applications') or []
+
+def save_data(action, data):
+    """Отправляет изменения на сайт"""
+    return api_request(f'save_{action}', 'POST', data)
+
+# ========== РАБОТА С СОСТОЯНИЯМИ (локально на Render) ==========
 def get_state_file(user_id):
     return os.path.join(STATES_DIR, f'state_{user_id}.json')
 
 def set_state(user_id, key, value):
     state_file = get_state_file(user_id)
-    state = load_json(state_file, {})
+    state = {}
+    if os.path.exists(state_file):
+        with open(state_file, 'r', encoding='utf-8') as f:
+            try:
+                state = json.load(f)
+            except:
+                state = {}
     state[key] = value
-    save_json(state_file, state)
+    with open(state_file, 'w', encoding='utf-8') as f:
+        json.dump(state, f, ensure_ascii=False, indent=2)
 
 def get_state(user_id, key, default=None):
     state_file = get_state_file(user_id)
-    state = load_json(state_file, {})
-    return state.get(key, default)
+    if os.path.exists(state_file):
+        with open(state_file, 'r', encoding='utf-8') as f:
+            try:
+                state = json.load(f)
+                return state.get(key, default)
+            except:
+                pass
+    return default
 
 def clear_state(user_id):
     state_file = get_state_file(user_id)
@@ -67,7 +90,7 @@ def clear_state(user_id):
 
 # ========== ОТПРАВКА СООБЩЕНИЙ ==========
 def send_message(chat_id, text, reply_markup=None):
-    url = f"{URL}/sendMessage"
+    url = f"{TELEGRAM_API}/sendMessage"
     payload = {
         'chat_id': chat_id,
         'text': text,
@@ -78,11 +101,11 @@ def send_message(chat_id, text, reply_markup=None):
     
     try:
         requests.post(url, json=payload, timeout=5)
-    except:
-        pass
+    except Exception as e:
+        print(f"Send error: {e}")
 
 def edit_message(chat_id, message_id, text, reply_markup=None):
-    url = f"{URL}/editMessageText"
+    url = f"{TELEGRAM_API}/editMessageText"
     payload = {
         'chat_id': chat_id,
         'message_id': message_id,
@@ -94,47 +117,36 @@ def edit_message(chat_id, message_id, text, reply_markup=None):
     
     try:
         requests.post(url, json=payload, timeout=5)
-    except:
-        pass
+    except Exception as e:
+        print(f"Edit error: {e}")
 
 def answer_callback(callback_id, text=''):
-    url = f"{URL}/answerCallbackQuery"
+    url = f"{TELEGRAM_API}/answerCallbackQuery"
     payload = {'callback_query_id': callback_id}
     if text:
         payload['text'] = text
     
     try:
         requests.post(url, json=payload, timeout=5)
-    except:
-        pass
+    except Exception as e:
+        print(f"Answer error: {e}")
 
-# ========== ОСНОВНЫЕ ФУНКЦИИ ==========
+# ========== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ==========
 def is_admin(user_id):
     return str(user_id) in ADMINS
 
-def get_data():
-    return load_json(DATA_FILE, {'tiers': {}, 'modes': []})
-
-def get_descriptions():
-    return load_json(DESC_FILE, {})
-
-def get_history():
-    return load_json(HISTORY_FILE, [])
-
-def get_applications():
-    return load_json(APPS_FILE, [])
-
 def add_history(action, data):
+    """Добавляет запись в историю (через API)"""
     history = get_history()
     history.append({
         'action': action,
         'time': int(time.time()),
         **data
     })
-    # Оставляем последние 1000 записей
+    # Оставляем последние 1000
     if len(history) > 1000:
         history = history[-1000:]
-    save_json(HISTORY_FILE, history)
+    save_data('history', history)
 
 # ========== ОБРАБОТКА КОМАНД ==========
 def cmd_start(chat_id, user_id):
@@ -156,11 +168,13 @@ def cmd_start(chat_id, user_id):
 /id — сменить порядок
 /history [ник] — история игрока
 /apps — заявки на тир
-/desc [ник] [текст] — добавить описание"""
+/desc [ник] [текст] — добавить описание
+/deldesc [ник] — удалить описание
+/rename [старый] [новый] — переименовать игрока"""
     
     send_message(chat_id, msg)
 
-def cmd_tier(chat_id):
+def cmd_tier(chat_id, msg_id=None):
     data = get_data()
     modes = data.get('modes', [])
     
@@ -179,7 +193,12 @@ def cmd_tier(chat_id):
     if row:
         keyboard['inline_keyboard'].append(row)
     
-    send_message(chat_id, f"Выберите режим:\n\nСайт: {SITE_URL}", keyboard)
+    text = f"Выберите режим:\n\nСайт: {SITE_URL}"
+    
+    if msg_id:
+        edit_message(chat_id, msg_id, text, keyboard)
+    else:
+        send_message(chat_id, text, keyboard)
 
 def cmd_find(chat_id, nick):
     if not nick:
@@ -230,7 +249,7 @@ def cmd_info(chat_id, nick):
     
     text = f"<b>{nick}</b>\n\n" + "\n".join(found)
     if nick in desc and desc[nick]:
-        text += f"\n\n<b>Описание:</b>\n{desc[nick]}"
+        text += f"\n\n<b>Описание:</b>\n<pre>{desc[nick]}</pre>"
     else:
         text += "\n\n<i>Описание отсутствует</i>"
     
@@ -358,7 +377,8 @@ def cmd_history(chat_id, nick):
     player_history = []
     
     for h in history:
-        if h.get('player', '').lower() == nick.lower():
+        if h.get('player', '').lower() == nick.lower() or \
+           h.get('old_name', '').lower() == nick.lower():
             player_history.append(h)
     
     if not player_history:
@@ -366,7 +386,7 @@ def cmd_history(chat_id, nick):
         return
     
     text = f"История {nick}:\n\n"
-    for h in player_history[-10:]:
+    for h in player_history[-15:]:
         date = time.strftime('%d.%m %H:%M', time.localtime(h.get('time', 0)))
         action = h.get('action')
         if action == 'add':
@@ -375,6 +395,11 @@ def cmd_history(chat_id, nick):
             text += f"{date} ~> {h.get('to_mode', '').upper()} | {h.get('to_platform', '').upper()} | {h.get('to_tier')}\n"
         elif action == 'delete':
             text += f"{date} X удален\n"
+        elif action == 'rename':
+            if h.get('player', '').lower() == nick.lower():
+                text += f"{date} ⟲ переименован из {h.get('old_name')}\n"
+            else:
+                text += f"{date} ⟳ переименован в {h.get('player')}\n"
     
     send_message(chat_id, text)
 
@@ -391,11 +416,165 @@ def cmd_desc(chat_id, user_id, args):
     nick, description = parts[0], parts[1]
     desc = get_descriptions()
     desc[nick] = description
-    save_json(DESC_FILE, desc)
+    save_data('descriptions', desc)
     send_message(chat_id, f"Описание для <b>{nick}</b> сохранено!")
 
+def cmd_deldesc(chat_id, user_id, nick):
+    if not is_admin(user_id):
+        send_message(chat_id, "Нет доступа")
+        return
+    
+    if not nick:
+        send_message(chat_id, "Использование: /deldesc [ник]")
+        return
+    
+    desc = get_descriptions()
+    if nick in desc:
+        del desc[nick]
+        save_data('descriptions', desc)
+        send_message(chat_id, f"Описание для <b>{nick}</b> удалено!")
+    else:
+        send_message(chat_id, f"У игрока <b>{nick}</b> нет описания")
+
+def cmd_rename(chat_id, user_id, args):
+    if not is_admin(user_id):
+        send_message(chat_id, "Нет доступа")
+        return
+    
+    parts = args.split()
+    if len(parts) < 2:
+        send_message(chat_id, "Использование: /rename [старый_ник] [новый_ник]")
+        return
+    
+    old_name, new_name = parts[0], parts[1]
+    
+    if old_name.lower() == new_name.lower():
+        send_message(chat_id, "Ники совпадают")
+        return
+    
+    data = get_data()
+    
+    # Проверяем, не занят ли новый ник
+    tiers = data.get('tiers', {})
+    for mode, platforms in tiers.items():
+        for platform, tier_list in platforms.items():
+            for tier, players in tier_list.items():
+                for player in players:
+                    if player.lower() == new_name.lower():
+                        send_message(chat_id, f"Ник <b>{new_name}</b> уже занят")
+                        return
+    
+    found = False
+    renamed_in = []
+    
+    # Переименовываем
+    for mode, platforms in tiers.items():
+        for platform, tier_list in platforms.items():
+            for tier, players in tier_list.items():
+                for i, player in enumerate(players):
+                    if player.lower() == old_name.lower():
+                        players[i] = new_name
+                        found = True
+                        renamed_in.append(f"{mode.upper()} | {platform.upper()} | {tier}")
+                        add_history('rename', {
+                            'player': new_name,
+                            'old_name': old_name,
+                            'mode': mode,
+                            'platform': platform,
+                            'tier': tier
+                        })
+    
+    if not found:
+        send_message(chat_id, f"Игрок не найден: {old_name}")
+        return
+    
+    # Переносим описание
+    desc = get_descriptions()
+    desc_transferred = False
+    if old_name in desc:
+        desc[new_name] = desc[old_name]
+        del desc[old_name]
+        save_data('descriptions', desc)
+        desc_transferred = True
+    
+    # Сохраняем данные
+    save_data('data', data)
+    
+    text = f"Игрок переименован:\n<b>{old_name}</b> → <b>{new_name}</b>\n\n"
+    text += "Обновлено в:\n" + "\n".join(renamed_in)
+    if desc_transferred:
+        text += "\n\nОписание перенесено"
+    
+    send_message(chat_id, text)
+
+def cmd_add(chat_id, msg_id=None):
+    data = get_data()
+    modes = data.get('modes', [])
+    
+    keyboard = {'inline_keyboard': []}
+    row = []
+    for mode in modes:
+        name = mode.get('name', '')
+        row.append({'text': name.upper(), 'callback_data': f'add_mode_{name}'})
+        if len(row) == 2:
+            keyboard['inline_keyboard'].append(row)
+            row = []
+    if row:
+        keyboard['inline_keyboard'].append(row)
+    
+    text = "Добавление игрока\n\nВыберите режим:"
+    
+    if msg_id:
+        edit_message(chat_id, msg_id, text, keyboard)
+    else:
+        send_message(chat_id, text, keyboard)
+
+def cmd_edit(chat_id, msg_id=None):
+    data = get_data()
+    modes = data.get('modes', [])
+    
+    keyboard = {'inline_keyboard': []}
+    row = []
+    for mode in modes:
+        name = mode.get('name', '')
+        row.append({'text': name.upper(), 'callback_data': f'edit_mode_{name}'})
+        if len(row) == 2:
+            keyboard['inline_keyboard'].append(row)
+            row = []
+    if row:
+        keyboard['inline_keyboard'].append(row)
+    
+    text = "Редактирование игрока\n\nВыберите режим:"
+    
+    if msg_id:
+        edit_message(chat_id, msg_id, text, keyboard)
+    else:
+        send_message(chat_id, text, keyboard)
+
+def cmd_id(chat_id, msg_id=None):
+    data = get_data()
+    modes = data.get('modes', [])
+    
+    keyboard = {'inline_keyboard': []}
+    row = []
+    for mode in modes:
+        name = mode.get('name', '')
+        row.append({'text': name.upper(), 'callback_data': f'id_mode_{name}'})
+        if len(row) == 2:
+            keyboard['inline_keyboard'].append(row)
+            row = []
+    if row:
+        keyboard['inline_keyboard'].append(row)
+    
+    text = "Смена порядка игроков\n\nВыберите режим:"
+    
+    if msg_id:
+        edit_message(chat_id, msg_id, text, keyboard)
+    else:
+        send_message(chat_id, text, keyboard)
+
 # ========== CALLBACK ОБРАБОТКА ==========
-def handle_view_mode(chat_id, message_id, mode):
+def handle_view_mode(chat_id, msg_id, mode):
     data = get_data()
     platforms = []
     for m in data.get('modes', []):
@@ -414,9 +593,9 @@ def handle_view_mode(chat_id, message_id, mode):
         keyboard['inline_keyboard'].append(row)
     keyboard['inline_keyboard'].append([{'text': 'Назад', 'callback_data': 'view_back_modes'}])
     
-    edit_message(chat_id, message_id, f"{mode.upper()}\n\nВыберите платформу:", keyboard)
+    edit_message(chat_id, msg_id, f"{mode.upper()}\n\nВыберите платформу:", keyboard)
 
-def handle_view_platform(chat_id, message_id, mode, platform):
+def handle_view_platform(chat_id, msg_id, mode, platform):
     data = get_data()
     desc = get_descriptions()
     tiers = data.get('tiers', {}).get(mode, {}).get(platform, {})
@@ -425,7 +604,7 @@ def handle_view_platform(chat_id, message_id, mode, platform):
     for tier in ['S', 'A', 'B', 'C', 'D', 'E']:
         players = tiers.get(tier, [])
         if players:
-            players_list = ', '.join(players[:30])  # Ограничиваем вывод
+            players_list = ', '.join(players[:30])
             desc_count = sum(1 for p in players if p in desc and desc[p])
             if desc_count:
                 players_list += f" ({desc_count} с описанием)"
@@ -435,15 +614,414 @@ def handle_view_platform(chat_id, message_id, mode, platform):
     
     text += f"Сайт: {SITE_URL}"
     keyboard = {'inline_keyboard': [[{'text': 'Назад', 'callback_data': f'view_back_platforms_{mode}'}]]}
-    edit_message(chat_id, message_id, text, keyboard)
+    edit_message(chat_id, msg_id, text, keyboard)
 
-# ========== ВЕБХУК ==========
+def handle_add_mode(chat_id, msg_id, mode, user_id):
+    data = get_data()
+    platforms = []
+    for m in data.get('modes', []):
+        if m.get('name') == mode:
+            platforms = m.get('platforms', [])
+            break
+    
+    set_state(user_id, 'add_mode', mode)
+    
+    keyboard = {'inline_keyboard': []}
+    row = []
+    for pl in platforms:
+        row.append({'text': pl.upper(), 'callback_data': f'add_platform_{mode}_{pl}'})
+        if len(row) == 3:
+            keyboard['inline_keyboard'].append(row)
+            row = []
+    if row:
+        keyboard['inline_keyboard'].append(row)
+    keyboard['inline_keyboard'].append([{'text': 'Назад', 'callback_data': 'add_back_modes'}])
+    
+    edit_message(chat_id, msg_id, f"Добавление игрока\n\n{mode.upper()}\n\nВыберите платформу:", keyboard)
+
+def handle_add_platform(chat_id, msg_id, mode, platform, user_id):
+    set_state(user_id, 'add_platform', platform)
+    
+    keyboard = {'inline_keyboard': []}
+    row = []
+    for tier in ['S', 'A', 'B', 'C', 'D', 'E']:
+        row.append({'text': tier, 'callback_data': f'add_tier_{mode}_{platform}_{tier}'})
+        if len(row) == 3:
+            keyboard['inline_keyboard'].append(row)
+            row = []
+    if row:
+        keyboard['inline_keyboard'].append(row)
+    keyboard['inline_keyboard'].append([{'text': 'Назад', 'callback_data': f'add_back_platforms_{mode}'}])
+    
+    edit_message(chat_id, msg_id, f"Добавление игрока\n\n{mode.upper()} | {platform.upper()}\n\nВыберите тир:", keyboard)
+
+def handle_add_tier(chat_id, msg_id, mode, platform, tier, user_id):
+    set_state(user_id, 'add_tier', tier)
+    set_state(user_id, 'waiting', 'nickname')
+    
+    # Убираем клавиатуру
+    edit_message(chat_id, msg_id, f"Добавление игрока\n\n{mode.upper()} | {platform.upper()} | {tier}\n\nВведите ник в чат:", None)
+    
+    # Отвечаем на callback
+    answer_callback_custom(None, "Введите ник в чат")
+
+def handle_edit_mode(chat_id, msg_id, mode, user_id):
+    data = get_data()
+    platforms = []
+    for m in data.get('modes', []):
+        if m.get('name') == mode:
+            platforms = m.get('platforms', [])
+            break
+    
+    set_state(user_id, 'edit_mode', mode)
+    
+    keyboard = {'inline_keyboard': []}
+    row = []
+    for pl in platforms:
+        row.append({'text': pl.upper(), 'callback_data': f'edit_platform_{mode}_{pl}'})
+        if len(row) == 3:
+            keyboard['inline_keyboard'].append(row)
+            row = []
+    if row:
+        keyboard['inline_keyboard'].append(row)
+    keyboard['inline_keyboard'].append([{'text': 'Назад', 'callback_data': 'edit_back_modes'}])
+    
+    edit_message(chat_id, msg_id, f"Редактирование игрока\n\n{mode.upper()}\n\nВыберите платформу:", keyboard)
+
+def handle_edit_platform(chat_id, msg_id, mode, platform, user_id):
+    set_state(user_id, 'edit_platform', platform)
+    
+    keyboard = {'inline_keyboard': []}
+    row = []
+    for tier in ['S', 'A', 'B', 'C', 'D', 'E']:
+        row.append({'text': tier, 'callback_data': f'edit_tier_{mode}_{platform}_{tier}'})
+        if len(row) == 3:
+            keyboard['inline_keyboard'].append(row)
+            row = []
+    if row:
+        keyboard['inline_keyboard'].append(row)
+    keyboard['inline_keyboard'].append([{'text': 'Назад', 'callback_data': f'edit_back_platforms_{mode}'}])
+    
+    edit_message(chat_id, msg_id, f"Редактирование игрока\n\n{mode.upper()} | {platform.upper()}\n\nВыберите тир:", keyboard)
+
+def handle_edit_tier(chat_id, msg_id, mode, platform, tier, user_id):
+    set_state(user_id, 'edit_tier', tier)
+    
+    data = get_data()
+    players = data.get('tiers', {}).get(mode, {}).get(platform, {}).get(tier, [])
+    
+    if not players:
+        text = f"Редактирование игрока\n\n{mode.upper()} | {platform.upper()} | {tier}\n\nПусто"
+        keyboard = {'inline_keyboard': [[{'text': 'Назад', 'callback_data': f'edit_back_platforms_{mode}'}]]}
+        edit_message(chat_id, msg_id, text, keyboard)
+        return
+    
+    keyboard = {'inline_keyboard': []}
+    for player in players:
+        keyboard['inline_keyboard'].append([{'text': player, 'callback_data': f'edit_player_{mode}_{platform}_{tier}_{player}'}])
+    keyboard['inline_keyboard'].append([{'text': 'Назад', 'callback_data': f'edit_back_tiers_{mode}_{platform}'}])
+    
+    edit_message(chat_id, msg_id, f"Редактирование игрока\n\n{mode.upper()} | {platform.upper()} | {tier}\n\nВыберите игрока:", keyboard)
+
+def handle_edit_player(chat_id, msg_id, mode, platform, tier, player, user_id):
+    set_state(user_id, 'edit_player', player)
+    
+    keyboard = {'inline_keyboard': [
+        [{'text': 'Переместить', 'callback_data': 'edit_move'}],
+        [{'text': 'Удалить', 'callback_data': 'edit_delete'}],
+        [{'text': 'Назад', 'callback_data': f'edit_back_players_{mode}_{platform}_{tier}'}]
+    ]}
+    
+    edit_message(chat_id, msg_id, f"Игрок: {player}\n\n{mode.upper()} | {platform.upper()} | {tier}", keyboard)
+
+def handle_edit_move(chat_id, msg_id, user_id):
+    data = get_data()
+    modes = data.get('modes', [])
+    
+    keyboard = {'inline_keyboard': []}
+    row = []
+    for mode in modes:
+        name = mode.get('name', '')
+        row.append({'text': name.upper(), 'callback_data': f'edit_movemode_{name}'})
+        if len(row) == 2:
+            keyboard['inline_keyboard'].append(row)
+            row = []
+    if row:
+        keyboard['inline_keyboard'].append(row)
+    keyboard['inline_keyboard'].append([{'text': 'Назад', 'callback_data': 'edit_back_actions'}])
+    
+    edit_message(chat_id, msg_id, "Переместить игрока\n\nВыберите новый режим:", keyboard)
+
+def handle_edit_movemode(chat_id, msg_id, mode, user_id):
+    set_state(user_id, 'move_mode', mode)
+    
+    data = get_data()
+    platforms = []
+    for m in data.get('modes', []):
+        if m.get('name') == mode:
+            platforms = m.get('platforms', [])
+            break
+    
+    keyboard = {'inline_keyboard': []}
+    row = []
+    for pl in platforms:
+        row.append({'text': pl.upper(), 'callback_data': f'edit_moveplatform_{mode}_{pl}'})
+        if len(row) == 3:
+            keyboard['inline_keyboard'].append(row)
+            row = []
+    if row:
+        keyboard['inline_keyboard'].append(row)
+    keyboard['inline_keyboard'].append([{'text': 'Назад', 'callback_data': 'edit_move'}])
+    
+    edit_message(chat_id, msg_id, f"Переместить игрока\n\n{mode.upper()}\n\nВыберите платформу:", keyboard)
+
+def handle_edit_moveplatform(chat_id, msg_id, mode, platform, user_id):
+    set_state(user_id, 'move_platform', platform)
+    
+    keyboard = {'inline_keyboard': []}
+    row = []
+    for tier in ['S', 'A', 'B', 'C', 'D', 'E']:
+        row.append({'text': tier, 'callback_data': f'edit_movetier_{mode}_{platform}_{tier}'})
+        if len(row) == 3:
+            keyboard['inline_keyboard'].append(row)
+            row = []
+    if row:
+        keyboard['inline_keyboard'].append(row)
+    keyboard['inline_keyboard'].append([{'text': 'Назад', 'callback_data': f'edit_movemode_{mode}'}])
+    
+    edit_message(chat_id, msg_id, f"Переместить игрока\n\n{mode.upper()} | {platform.upper()}\n\nВыберите тир:", keyboard)
+
+def handle_edit_movetier(chat_id, msg_id, mode, platform, tier, user_id):
+    old_mode = get_state(user_id, 'edit_mode')
+    old_platform = get_state(user_id, 'edit_platform')
+    old_tier = get_state(user_id, 'edit_tier')
+    player = get_state(user_id, 'edit_player')
+    
+    data = get_data()
+    
+    # Удаляем из старого места
+    if old_mode in data['tiers'] and old_platform in data['tiers'][old_mode] and old_tier in data['tiers'][old_mode][old_platform]:
+        players = data['tiers'][old_mode][old_platform][old_tier]
+        data['tiers'][old_mode][old_platform][old_tier] = [p for p in players if p != player]
+    
+    # Добавляем в новое место
+    if mode not in data['tiers']:
+        data['tiers'][mode] = {}
+    if platform not in data['tiers'][mode]:
+        data['tiers'][mode][platform] = {}
+    if tier not in data['tiers'][mode][platform]:
+        data['tiers'][mode][platform][tier] = []
+    
+    # Удаляем из нового места если был
+    if player in data['tiers'][mode][platform][tier]:
+        data['tiers'][mode][platform][tier] = [p for p in data['tiers'][mode][platform][tier] if p != player]
+    
+    data['tiers'][mode][platform][tier].append(player)
+    
+    # Сохраняем
+    save_data('data', data)
+    
+    # История
+    add_history('move', {
+        'player': player,
+        'from_mode': old_mode,
+        'from_platform': old_platform,
+        'from_tier': old_tier,
+        'to_mode': mode,
+        'to_platform': platform,
+        'to_tier': tier
+    })
+    
+    text = f"Перемещено:\n\n{player}\n\n{old_mode.upper()} | {old_platform.upper()} | {old_tier}\n↓\n{mode.upper()} | {platform.upper()} | {tier}"
+    keyboard = {'inline_keyboard': [[{'text': 'Готово', 'callback_data': 'edit_back_modes'}]]}
+    edit_message(chat_id, msg_id, text, keyboard)
+    clear_state(user_id)
+
+def handle_edit_delete(chat_id, msg_id, user_id):
+    mode = get_state(user_id, 'edit_mode')
+    platform = get_state(user_id, 'edit_platform')
+    tier = get_state(user_id, 'edit_tier')
+    player = get_state(user_id, 'edit_player')
+    
+    data = get_data()
+    
+    # Удаляем игрока
+    if mode in data['tiers'] and platform in data['tiers'][mode] and tier in data['tiers'][mode][platform]:
+        players = data['tiers'][mode][platform][tier]
+        data['tiers'][mode][platform][tier] = [p for p in players if p != player]
+    
+    # Сохраняем
+    save_data('data', data)
+    
+    # История
+    add_history('delete', {
+        'player': player,
+        'mode': mode,
+        'platform': platform,
+        'tier': tier
+    })
+    
+    text = f"Удалено:\n\n{player}"
+    keyboard = {'inline_keyboard': [[{'text': 'Готово', 'callback_data': 'edit_back_modes'}]]}
+    edit_message(chat_id, msg_id, text, keyboard)
+    clear_state(user_id)
+
+def handle_id_mode(chat_id, msg_id, mode, user_id):
+    data = get_data()
+    platforms = []
+    for m in data.get('modes', []):
+        if m.get('name') == mode:
+            platforms = m.get('platforms', [])
+            break
+    
+    set_state(user_id, 'id_mode', mode)
+    
+    keyboard = {'inline_keyboard': []}
+    row = []
+    for pl in platforms:
+        row.append({'text': pl.upper(), 'callback_data': f'id_platform_{mode}_{pl}'})
+        if len(row) == 3:
+            keyboard['inline_keyboard'].append(row)
+            row = []
+    if row:
+        keyboard['inline_keyboard'].append(row)
+    keyboard['inline_keyboard'].append([{'text': 'Назад', 'callback_data': 'id_back_modes'}])
+    
+    edit_message(chat_id, msg_id, f"Смена порядка\n\n{mode.upper()}\n\nВыберите платформу:", keyboard)
+
+def handle_id_platform(chat_id, msg_id, mode, platform, user_id):
+    set_state(user_id, 'id_platform', platform)
+    
+    keyboard = {'inline_keyboard': []}
+    row = []
+    for tier in ['S', 'A', 'B', 'C', 'D', 'E']:
+        row.append({'text': tier, 'callback_data': f'id_tier_{mode}_{platform}_{tier}'})
+        if len(row) == 3:
+            keyboard['inline_keyboard'].append(row)
+            row = []
+    if row:
+        keyboard['inline_keyboard'].append(row)
+    keyboard['inline_keyboard'].append([{'text': 'Назад', 'callback_data': f'id_back_platforms_{mode}'}])
+    
+    edit_message(chat_id, msg_id, f"Смена порядка\n\n{mode.upper()} | {platform.upper()}\n\nВыберите тир:", keyboard)
+
+def handle_id_tier(chat_id, msg_id, mode, platform, tier, user_id):
+    set_state(user_id, 'id_tier', tier)
+    
+    data = get_data()
+    players = data.get('tiers', {}).get(mode, {}).get(platform, {}).get(tier, [])
+    
+    if not players:
+        text = f"Смена порядка\n\n{mode.upper()} | {platform.upper()} | {tier}\n\nПусто"
+        keyboard = {'inline_keyboard': [[{'text': 'Назад', 'callback_data': f'id_back_platforms_{mode}'}]]}
+        edit_message(chat_id, msg_id, text, keyboard)
+        return
+    
+    keyboard = {'inline_keyboard': []}
+    for idx, player in enumerate(players):
+        keyboard['inline_keyboard'].append([{'text': f"{idx+1}. {player}", 'callback_data': f'id_player_{mode}_{platform}_{tier}_{player}_{idx}'}])
+    keyboard['inline_keyboard'].append([{'text': 'Назад', 'callback_data': f'id_back_tiers_{mode}_{platform}'}])
+    
+    text = f"Смена порядка\n\n{mode.upper()} | {platform.upper()} | {tier}\n\nВсего игроков: {len(players)}\n\nВыберите игрока для перемещения:"
+    edit_message(chat_id, msg_id, text, keyboard)
+
+def handle_id_player(chat_id, msg_id, mode, platform, tier, player, idx, user_id):
+    set_state(user_id, 'id_player', player)
+    set_state(user_id, 'id_player_index', int(idx))
+    
+    data = get_data()
+    players = data.get('tiers', {}).get(mode, {}).get(platform, {}).get(tier, [])
+    total = len(players)
+    
+    keyboard = {'inline_keyboard': []}
+    row = []
+    for i in range(total):
+        if i == int(idx):
+            continue
+        row.append({'text': str(i+1), 'callback_data': f'id_pos_{i}'})
+        if len(row) == 5:
+            keyboard['inline_keyboard'].append(row)
+            row = []
+    if row:
+        keyboard['inline_keyboard'].append(row)
+    keyboard['inline_keyboard'].append([{'text': 'Назад', 'callback_data': f'id_back_players_{mode}_{platform}_{tier}'}])
+    
+    text = f"Переместить: {player}\n\nТекущая позиция: {int(idx)+1} из {total}\n\nВыберите новую позицию:"
+    edit_message(chat_id, msg_id, text, keyboard)
+
+def handle_id_pos(chat_id, msg_id, new_idx, user_id):
+    mode = get_state(user_id, 'id_mode')
+    platform = get_state(user_id, 'id_platform')
+    tier = get_state(user_id, 'id_tier')
+    player = get_state(user_id, 'id_player')
+    old_idx = int(get_state(user_id, 'id_player_index'))
+    new_idx = int(new_idx)
+    
+    data = get_data()
+    players = data['tiers'][mode][platform][tier]
+    
+    # Удаляем со старой позиции
+    player_to_move = players.pop(old_idx)
+    # Вставляем на новую
+    players.insert(new_idx, player_to_move)
+    
+    # Сохраняем
+    save_data('data', data)
+    
+    text = f"Перемещено:\n\n{player}\n\nПозиция {old_idx+1} → {new_idx+1}"
+    keyboard = {'inline_keyboard': [[{'text': 'Готово', 'callback_data': 'id_back_modes'}]]}
+    edit_message(chat_id, msg_id, text, keyboard)
+    clear_state(user_id)
+
+def handle_app_delete(chat_id, msg_id, app_id):
+    apps = get_applications()
+    apps = [a for a in apps if a.get('id') != int(app_id)]
+    save_data('applications', apps)
+    
+    # Показываем обновлённый список
+    cmd_apps(chat_id)
+
+def handle_confirm_add(chat_id, user_id, text):
+    mode = get_state(user_id, 'add_mode')
+    platform = get_state(user_id, 'add_platform')
+    tier = get_state(user_id, 'add_tier')
+    
+    data = get_data()
+    
+    # Удаляем из других тиров
+    for t in ['S', 'A', 'B', 'C', 'D', 'E']:
+        if t != tier and text in data['tiers'][mode][platform].get(t, []):
+            data['tiers'][mode][platform][t] = [p for p in data['tiers'][mode][platform][t] if p != text]
+    
+    # Добавляем
+    if text not in data['tiers'][mode][platform][tier]:
+        data['tiers'][mode][platform][tier].append(text)
+    
+    # Сохраняем
+    save_data('data', data)
+    
+    # История
+    add_history('add', {
+        'player': text,
+        'mode': mode,
+        'platform': platform,
+        'tier': tier
+    })
+    
+    send_message(chat_id, f"Добавлено:\n{mode.upper()} | {platform.upper()} | {tier}\n\n{text}")
+    clear_state(user_id)
+
+def answer_callback_custom(callback_id, text=''):
+    # Заглушка для ответа на callback
+    pass
+
+# ========== ОСНОВНОЙ ВЕБХУК ==========
 @app.route('/', methods=['POST'])
 def webhook():
     data = request.get_json()
     
-    # Логируем для отладки
-    print(json.dumps(data, indent=2, ensure_ascii=False))
+    # Логируем для отладки (опционально)
+    # print(json.dumps(data, indent=2, ensure_ascii=False))
     
     if 'message' in data:
         chat_id = data['message']['chat']['id']
@@ -454,6 +1032,13 @@ def webhook():
         if '@' in text:
             text = text.split('@')[0]
         
+        # Проверяем, ожидаем ли мы ввод
+        waiting = get_state(user_id, 'waiting')
+        if waiting == 'nickname':
+            handle_confirm_add(chat_id, user_id, text)
+            return "OK", 200
+        
+        # Обработка команд
         if text == '/start':
             cmd_start(chat_id, user_id)
         
@@ -484,37 +1069,141 @@ def webhook():
         elif text.startswith('/desc ') and is_admin(user_id):
             cmd_desc(chat_id, user_id, text[6:].strip())
         
-        elif text == '!пинг':
-            cmd_ping(chat_id)
+        elif text.startswith('/deldesc ') and is_admin(user_id):
+            cmd_deldesc(chat_id, user_id, text[9:].strip())
+        
+        elif text.startswith('/rename ') and is_admin(user_id):
+            cmd_rename(chat_id, user_id, text[8:].strip())
+        
+        elif text.startswith('/appdelete_') and is_admin(user_id):
+            app_id = text[11:].strip()
+            if app_id.isdigit():
+                handle_app_delete(chat_id, None, app_id)
         
         elif text == '/add' and is_admin(user_id):
-            cmd_tier(chat_id)  # Временно
+            cmd_add(chat_id)
+        
+        elif text == '/edit' and is_admin(user_id):
+            cmd_edit(chat_id)
+        
+        elif text == '/id' and is_admin(user_id):
+            cmd_id(chat_id)
+        
+        elif text == '!пинг':
+            cmd_ping(chat_id)
     
     elif 'callback_query' in data:
         cb = data['callback_query']
         msg_id = cb['message']['message_id']
         chat_id = cb['message']['chat']['id']
-        cb_user = cb['from']['id']
+        user_id = cb['from']['id']
         cb_data = cb['data']
         
-        if cb_data.startswith('view_mode_'):
-            mode = cb_data[10:]
-            handle_view_mode(chat_id, msg_id, mode)
+        is_callback_admin = is_admin(user_id)
         
-        elif cb_data.startswith('view_platform_'):
-            parts = cb_data.split('_')
-            if len(parts) >= 4:
-                mode, platform = parts[2], parts[3]
-                handle_view_platform(chat_id, msg_id, mode, platform)
+        # Разбираем callback
+        parts = cb_data.split('_')
         
-        elif cb_data == 'view_back_modes':
-            cmd_tier(chat_id)
+        # Просмотр (доступен всем)
+        if parts[0] == 'view':
+            if parts[1] == 'mode' and len(parts) >= 3:
+                handle_view_mode(chat_id, msg_id, parts[2])
+            elif parts[1] == 'platform' and len(parts) >= 4:
+                handle_view_platform(chat_id, msg_id, parts[2], parts[3])
+            elif parts[1] == 'back':
+                if len(parts) >= 3 and parts[2] == 'modes':
+                    cmd_tier(chat_id, msg_id)
+                elif len(parts) >= 4:
+                    handle_view_mode(chat_id, msg_id, parts[3])
         
-        elif cb_data.startswith('view_back_platforms_'):
-            mode = cb_data[19:]
-            handle_view_mode(chat_id, msg_id, mode)
+        # Админские действия
+        elif is_callback_admin:
+            if parts[0] == 'add':
+                if parts[1] == 'mode' and len(parts) >= 3:
+                    handle_add_mode(chat_id, msg_id, parts[2], user_id)
+                elif parts[1] == 'platform' and len(parts) >= 4:
+                    handle_add_platform(chat_id, msg_id, parts[2], parts[3], user_id)
+                elif parts[1] == 'tier' and len(parts) >= 5:
+                    handle_add_tier(chat_id, msg_id, parts[2], parts[3], parts[4], user_id)
+                elif parts[1] == 'back':
+                    if len(parts) >= 3 and parts[2] == 'modes':
+                        cmd_add(chat_id, msg_id)
+                    elif len(parts) >= 4:
+                        handle_add_mode(chat_id, msg_id, get_state(user_id, 'add_mode'), user_id)
+            
+            elif parts[0] == 'edit':
+                if parts[1] == 'mode' and len(parts) >= 3:
+                    handle_edit_mode(chat_id, msg_id, parts[2], user_id)
+                elif parts[1] == 'platform' and len(parts) >= 4:
+                    handle_edit_platform(chat_id, msg_id, parts[2], parts[3], user_id)
+                elif parts[1] == 'tier' and len(parts) >= 5:
+                    handle_edit_tier(chat_id, msg_id, parts[2], parts[3], parts[4], user_id)
+                elif parts[1] == 'player' and len(parts) >= 6:
+                    handle_edit_player(chat_id, msg_id, get_state(user_id, 'edit_mode'), 
+                                      get_state(user_id, 'edit_platform'), 
+                                      get_state(user_id, 'edit_tier'), parts[5], user_id)
+                elif parts[1] == 'move':
+                    handle_edit_move(chat_id, msg_id, user_id)
+                elif parts[1] == 'movemode' and len(parts) >= 3:
+                    handle_edit_movemode(chat_id, msg_id, parts[2], user_id)
+                elif parts[1] == 'moveplatform' and len(parts) >= 4:
+                    handle_edit_moveplatform(chat_id, msg_id, parts[2], parts[3], user_id)
+                elif parts[1] == 'movetier' and len(parts) >= 5:
+                    handle_edit_movetier(chat_id, msg_id, parts[2], parts[3], parts[4], user_id)
+                elif parts[1] == 'delete':
+                    handle_edit_delete(chat_id, msg_id, user_id)
+                elif parts[1] == 'back':
+                    if len(parts) >= 3 and parts[2] == 'modes':
+                        cmd_edit(chat_id, msg_id)
+                    elif len(parts) >= 3 and parts[2] == 'platforms':
+                        handle_edit_mode(chat_id, msg_id, get_state(user_id, 'edit_mode'), user_id)
+                    elif len(parts) >= 3 and parts[2] == 'tiers':
+                        handle_edit_platform(chat_id, msg_id, get_state(user_id, 'edit_mode'), 
+                                           get_state(user_id, 'edit_platform'), user_id)
+                    elif len(parts) >= 3 and parts[2] == 'players':
+                        handle_edit_tier(chat_id, msg_id, get_state(user_id, 'edit_mode'), 
+                                       get_state(user_id, 'edit_platform'), 
+                                       get_state(user_id, 'edit_tier'), user_id)
+                    elif len(parts) >= 3 and parts[2] == 'actions':
+                        handle_edit_player(chat_id, msg_id, get_state(user_id, 'edit_mode'), 
+                                         get_state(user_id, 'edit_platform'), 
+                                         get_state(user_id, 'edit_tier'), 
+                                         get_state(user_id, 'edit_player'), user_id)
+            
+            elif parts[0] == 'id':
+                if parts[1] == 'mode' and len(parts) >= 3:
+                    handle_id_mode(chat_id, msg_id, parts[2], user_id)
+                elif parts[1] == 'platform' and len(parts) >= 4:
+                    handle_id_platform(chat_id, msg_id, parts[2], parts[3], user_id)
+                elif parts[1] == 'tier' and len(parts) >= 5:
+                    handle_id_tier(chat_id, msg_id, parts[2], parts[3], parts[4], user_id)
+                elif parts[1] == 'player' and len(parts) >= 7:
+                    handle_id_player(chat_id, msg_id, parts[2], parts[3], parts[4], parts[5], parts[6], user_id)
+                elif parts[1] == 'pos' and len(parts) >= 3:
+                    handle_id_pos(chat_id, msg_id, parts[2], user_id)
+                elif parts[1] == 'back':
+                    if len(parts) >= 3 and parts[2] == 'modes':
+                        cmd_id(chat_id, msg_id)
+                    elif len(parts) >= 3 and parts[2] == 'platforms':
+                        handle_id_mode(chat_id, msg_id, get_state(user_id, 'id_mode'), user_id)
+                    elif len(parts) >= 3 and parts[2] == 'tiers':
+                        handle_id_platform(chat_id, msg_id, get_state(user_id, 'id_mode'), 
+                                         get_state(user_id, 'id_platform'), user_id)
+                    elif len(parts) >= 3 and parts[2] == 'players':
+                        handle_id_tier(chat_id, msg_id, get_state(user_id, 'id_mode'), 
+                                     get_state(user_id, 'id_platform'), 
+                                     get_state(user_id, 'id_tier'), user_id)
+            
+            elif parts[0] == 'app' and len(parts) >= 3 and parts[1] == 'delete':
+                handle_app_delete(chat_id, msg_id, parts[2])
         
-        answer_callback(cb['id'])
+        # Отвечаем на callback
+        try:
+            url = f"{TELEGRAM_API}/answerCallbackQuery"
+            payload = {'callback_query_id': cb['id']}
+            requests.post(url, json=payload, timeout=3)
+        except:
+            pass
     
     return "OK", 200
 
