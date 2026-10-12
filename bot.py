@@ -20,9 +20,8 @@ if not os.path.exists(STATES_DIR):
 
 def api_request(action, method='GET', data=None):
     try:
-        url = f"{API_URL}?action={action}"
+        url = f"{API_URL}?action={action}&token={API_TOKEN}"
         if method == 'POST':
-            url += f"&token={API_TOKEN}"
             response = requests.post(url, json=data, timeout=5)
         else:
             response = requests.get(url, timeout=5)
