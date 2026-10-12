@@ -8,8 +8,8 @@ from functools import wraps
 app = Flask(__name__)
 
 # ========== НАСТРОЙКИ ==========
-TOKEN = "7532259267:AAH78XkmHO2JqCyi2h4YHljsbtYJyGebaTo"
-SITE_URL = "https://breadix-tier.ru"  # Ваш сайт
+TOKEN = "8793767845:AAH_tCJXNTE1QgygoC90etokVVFP36YnwrI"
+SITE_URL = "https://fullmine-tier.ru"  # Ваш сайт
 API_URL = f"{SITE_URL}/bot_api.php"   # Ваш API
 API_TOKEN = "secret123"                # Тот же токен, что в PHP
 ADMINS = ['6380018406', '8198380412', '8208522743', '7886275415']
