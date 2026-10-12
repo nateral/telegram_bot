@@ -6,7 +6,7 @@ import time
 
 app = Flask(__name__)
 
-TOKEN = "8793767845:AAHfhWkDH5N5iFWtIYcX-YQmB-8lBSXZOF"
+TOKEN = "8793767845:AAHfhWkDH5N5iFWtIYcX-YQmB-8lBSXZOFc"
 SITE_URL = "https://fullmine-tier.ru"
 API_URL = f"{SITE_URL}/bot_api.php"
 API_TOKEN = "secret123"
